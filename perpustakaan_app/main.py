@@ -20,7 +20,7 @@ def update_trv(rows):
 def search():
     q2 = q.get()
     query = """
-    SELECT KODE, JUDUL, KATEGORI, NO_RAK, PENULIS, PENERBIT, TAHUN, STOK FROM LIBRARY WHERE KODE LIKE {} OR JUDUL LIKE {} 
+    SELECT ID, JUDUL, KATEGORI, NO_RAK, PENULIS, PENERBIT, TAHUN, STOK FROM LIBRARY WHERE JUDUL LIKE {} OR NO_RAK LIKE {}
     """.format("'%"+q2+"%'", "'%"+q2+"%'")
     print(query)
     cursor.execute(query)
@@ -30,7 +30,7 @@ def search():
 
 # Clear Treeview
 def clear():
-    query = "SELECT KODE, JUDUL, KATEGORI, NO_RAK, PENULIS, PENERBIT, TAHUN, STOK FROM LIBRARY"
+    query = "SELECT ID, JUDUL, KATEGORI, NO_RAK, PENULIS, PENERBIT, TAHUN, STOK FROM LIBRARY"
     cursor.execute(query)
     rows = cursor.fetchall()
     conn.commit()
@@ -41,7 +41,7 @@ def clear():
 def getrow(event):
     rowid = trv.identify_row(event.y)
     item = trv.item(rowid)
-    v_kode.set(item['values'][0])
+    v_id.set(item['values'][0])
     v_judul.set(item['values'][1])
     v_kategori.set(item['values'][2])
     v_no_rak.set("00"+str(item['values'][3]))
@@ -50,16 +50,12 @@ def getrow(event):
     v_tahun_terbit.set(item['values'][6])
     v_stok.set(item['values'][7])
 
-
-
-
 # Create Family Table
 def create_table():
     cursor.execute("DROP TABLE IF EXISTS LIBRARY")
     query = """ 
     CREATE TABLE LIBRARY(
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        KODE INT NOT NULL,
         JUDUL TEXT NOT NULL,
         KATEGORI TEXT NOT NULL,
         NO_RAK TEXT NOT NULL,
@@ -74,25 +70,23 @@ def create_table():
 
 # Clear Field Of Form
 def clear_field():
-    kode_field.delete(0, 'end')
     judul_field.delete(0, 'end')
     penulis_field.delete(0, 'end')
     penerbit_field.delete(0, 'end')
     tahun_field.delete(0, 'end')
     kategori_field.set('')
     no_rak_field.set('')
-
+    stok_field.delete(0, 'end')
 # Update People Data
 def update_people():
     if messagebox.askyesno("Harap Konfirmasi", "Apakah Anda Serius ingin memperbaharui data ini?"):
         query = """
             UPDATE LIBRARY
-            SET KODE=:KODE, JUDUL=:JUDUL, KATEGORI=:KATEGORI, NO_RAK=:NO_RAK, PENULIS=:PENULIS, PENERBIT=:PENERBIT, TAHUN=:TAHUN, STOK=:STOK
-            WHERE KODE=:KODE
+            SET JUDUL=:JUDUL, KATEGORI=:KATEGORI, NO_RAK=:NO_RAK, PENULIS=:PENULIS, PENERBIT=:PENERBIT, TAHUN=:TAHUN, STOK=:STOK
+            WHERE ID=:ID
         """
-        print(v_judul.get())
         params = {
-            'KODE': v_kode.get(), 
+            'ID':v_id.get(),
             'JUDUL': v_judul.get(),
             'KATEGORI': v_kategori.get(),
             'NO_RAK' : v_no_rak.get(),
@@ -107,30 +101,14 @@ def update_people():
     else:
         return True
 
-def get_code():
-    qcount = "SELECT MAX(ID) FROM LIBRARY"
-    qcursor = cursor.execute(qcount)
-    qcount = qcursor.fetchall()
-    count = qcount[0][0]
-    if count == None:
-        count = 0
-    if len(str(count))<2:
-        count = "00{}".format(count)
-    elif len(str(count))<3:
-        count = "0{}".format(count)
-    kode = "{}{}{}".format(v_no_rak.get(), str(v_kategori.get())[0:3], count)
-
-    return int(kode)
-# Add New People Data
 def add_new():
     # GENERATE KODE
     query = """
         INSERT INTO LIBRARY
-        (KODE, JUDUL, KATEGORI, NO_RAK, PENULIS, PENERBIT, TAHUN, STOK)
-        VALUES (:KODE, :JUDUL, :KATEGORI, :NO_RAK, :PENULIS, :PENERBIT, :TAHUN, :STOK)
+        (JUDUL, KATEGORI, NO_RAK, PENULIS, PENERBIT, TAHUN, STOK)
+        VALUES (:JUDUL, :KATEGORI, :NO_RAK, :PENULIS, :PENERBIT, :TAHUN, :STOK)
         """
     params = {
-        'KODE': get_code(),
         'JUDUL': v_judul.get(),
         'KATEGORI': v_kategori.get(),
         'NO_RAK' : v_no_rak.get(),
@@ -145,10 +123,9 @@ def add_new():
 
 # Delete People
 def delete_book():
-    kode = v_kode.get()
+    id = v_id.get()
     if(messagebox.askyesno("Konfirmasi Hapus?", "Apakah kami serius ingin menghapus data buku ini?")):
-        query = "DELETE FROM LIBRARY WHERE KODE = {}".format(kode)
-        print(kode)
+        query = "DELETE FROM LIBRARY WHERE ID = {}".format(id)
         cursor.execute(query)
         conn.commit()
         clear()
@@ -157,7 +134,7 @@ def delete_book():
 
 # Select All From TABLE
 def select_all():
-    query = "SELECT KODE, JUDUL, KATEGORI, NO_RAK, PENULIS, PENERBIT, TAHUN, STOK FROM LIBRARY"
+    query = "SELECT ID, JUDUL, KATEGORI, NO_RAK, PENULIS, PENERBIT, TAHUN, STOK FROM LIBRARY"
     cursor.execute(query)
     rows = cursor.fetchall()
     update_trv(rows)
@@ -183,14 +160,13 @@ wrapper3.pack(fill="both", padx=20, pady=10)
 
 # SECTION : TREE VIEW
 # Treeview Configure
-trv = ttk.Treeview(wrapper1, column=(0,1,2,3,4,5,6,7), height=6)
-trv["show"] = "headings"
-style = ttk.Style(root)
+trv = ttk.Treeview(wrapper1, column=(0,1,2,3,4,5,6,7), height=6, show="headings")
+style = ttk.Style()
 style.theme_use("clam")
 trv.pack(side=RIGHT)
 trv.place(x=0, y=0)
 # Treeview Heading
-trv.heading(0, text="Kode")
+trv.heading(0, text="Id")
 trv.heading(1, text="Judul")
 trv.heading(2, text="Kategori")
 trv.heading(3, text="No Rak")
@@ -199,27 +175,35 @@ trv.heading(5, text="Penerbit")
 trv.heading(6, text="Tahun Terbit")
 trv.heading(7, text="Stok")
 # Treeview Column
-trv.column(0, width=100, minwidth=150, anchor=CENTER)
-trv.column(1, width=100, minwidth=150, anchor=CENTER)
-trv.column(2, width=100, minwidth=150, anchor=CENTER)
-trv.column(3, width=50, minwidth=100,anchor=CENTER)
-trv.column(4, width=100, minwidth=150,anchor=CENTER)
-trv.column(5, width=100, minwidth=150,anchor=CENTER)
-trv.column(6, width=50, minwidth=100, anchor=CENTER)
-trv.column(7, width=50, minwidth=100,anchor=CENTER)
+# trv.column(0, stretch=NO, minwidth=0, width=0)
+# trv.column(1, width=95, minwidth=135, anchor=CENTER)
+# trv.column(2, width=95, minwidth=135, anchor=CENTER)
+# trv.column(3, width=95, minwidth=135,anchor=CENTER)
+# trv.column(4, width=95, minwidth=135,anchor=CENTER)
+# trv.column(5, width=95, minwidth=135,anchor=CENTER)
+# trv.column(6, width=95, minwidth=135, anchor=CENTER)
+# trv.column(7, width=65, minwidth=105,anchor=CENTER)
+trv.column(0, stretch=NO, width=0)
+trv.column(1, width=95, anchor=CENTER)
+trv.column(2, width=95, anchor=CENTER)
+trv.column(3, width=95,anchor=CENTER)
+trv.column(4, width=95,anchor=CENTER)
+trv.column(5, width=95,anchor=CENTER)
+trv.column(6, width=95, anchor=CENTER)
+trv.column(7, width=95,anchor=CENTER)
 
 trv.bind('<Double 1>', getrow)
 
 #Scrollbar of TRV
-yscrollbar = ttk.Scrollbar(wrapper1, orient="vertical", command=trv.yview)
+yscrollbar = Scrollbar(wrapper1, orient="vertical", command=trv.yview)
 yscrollbar.pack(side=RIGHT, fill="y")
-xscrollbar = ttk.Scrollbar(wrapper1, orient="horizontal", command=trv.xview)
-xscrollbar.pack(side=BOTTOM,fill=X)
+xscrollbar = Scrollbar(wrapper1, orient="horizontal", command=trv.xview)
+xscrollbar.pack(side=BOTTOM,fill="x")
 trv.configure(yscrollcommand=yscrollbar.set, xscrollcommand=xscrollbar.set)
 
 
 
-# SECTION : SEARCH
+# SECTION : SEARCHwh
 q = StringVar()
 lbl = Label(wrapper2, text="Search")
 lbl.pack(side=LEFT, padx=10, pady=15)
@@ -233,7 +217,6 @@ cbtn.pack(side=LEFT, padx=6, pady=15)
 # SECTION = LIBRARY DATA FORM
 p_style = ('Calibri 10')
 # Select Label of From
-kode = tk.Label(wrapper3, text="Kode",  font= p_style)
 judul = tk.Label(wrapper3, text="Judul", font= p_style)
 kategori = tk.Label(wrapper3, text="Kategori", font= p_style)
 no_rak = tk.Label(wrapper3, text="No Rak", font= p_style)
@@ -242,16 +225,15 @@ penerbit = tk.Label(wrapper3, text="Penerbit", font= p_style)
 tahun_terbit = tk.Label(wrapper3, text="Tahun Terbit", font= p_style)
 stok = tk.Label(wrapper3, text="Stok", font= p_style)
 # Place Label of Form
-kode.grid(row=1, column=0, sticky="w", pady=4, padx=(0,30))
-judul.grid(row=2, column=0, sticky="w", pady=4)
-kategori.grid(row=3, column=0, sticky="w", pady=4)
-no_rak.grid(row=4, column=0, sticky="w", pady=4)
-penulis.grid(row=1, column=6, sticky="w", pady=4, padx=10)
-penerbit.grid(row=2, column=6, sticky="w", pady=4, padx=10)
-tahun_terbit.grid(row=3, column=6, sticky="w", pady=4, padx=10)
-stok.grid(row=4, column=6, sticky="w", pady=4,  padx=10)
+judul.grid(row=1, column=0, sticky="w", pady=4)
+kategori.grid(row=2, column=0, sticky="w", pady=4)
+no_rak.grid(row=3, column=0, sticky="w", pady=4)
+penulis.grid(row=4, column=0, sticky="w", pady=4)
+penerbit.grid(row=1, column=6, sticky="w", pady=4, padx=10)
+tahun_terbit.grid(row=2, column=6, sticky="w", pady=4, padx=10)
+stok.grid(row=3, column=6, sticky="w", pady=4,  padx=10)
 # Variabel to Save value of Field
-v_kode = tk.IntVar()
+v_id = tk.IntVar()
 v_judul = tk.StringVar()
 v_kategori = tk.StringVar()
 v_no_rak = tk.StringVar()
@@ -260,8 +242,6 @@ v_penerbit = tk.StringVar()
 v_tahun_terbit = tk.StringVar()
 v_stok = tk.IntVar()
 # Field to Input data
-kode_field = Entry(wrapper3, font=p_style, textvariable=v_kode)
-kode_field.config(state="disabled")
 judul_field = Entry(wrapper3, font=p_style, textvariable=v_judul)
 kategori_field = ttk.Combobox(wrapper3, width = 17, textvariable = v_kategori, font=p_style)
 kategori_field['values'] = (
@@ -285,14 +265,13 @@ tahun_field = Entry(wrapper3, font=p_style, textvariable=v_tahun_terbit)
 stok_field = Entry(wrapper3, font=p_style, textvariable=v_stok)
 
 
-kode_field.grid(row=1, column=2, columnspan=2,  sticky="w", pady=4, padx=10)
-judul_field.grid(row=2, column=2, columnspan=2,sticky="w", pady=4, padx=10)
-kategori_field.grid(row=3, column=2,columnspan=2,  sticky="w", pady=4, padx=10)
-no_rak_field.grid(row=4, column=2, columnspan=2,sticky="w", pady=4, padx=10)
-penulis_field.grid(row=1, column=7, columnspan=2,sticky="w", pady=4)
-penerbit_field.grid(row=2, column=7, columnspan=2,sticky="w", pady=4)
-tahun_field.grid(row=3, column=7, columnspan=2,sticky="w", pady=4)
-stok_field.grid(row=4, column=7, columnspan=2,sticky="w", pady=4)
+judul_field.grid(row=1, column=2, columnspan=2,sticky="w", pady=4, padx=10)
+kategori_field.grid(row=2, column=2,columnspan=2,  sticky="w", pady=4, padx=10)
+no_rak_field.grid(row=3, column=2, columnspan=2,sticky="w", pady=4, padx=10)
+penulis_field.grid(row=4, column=2, columnspan=2,sticky="w", pady=4, padx=10)
+penerbit_field.grid(row=1, column=7, columnspan=2,sticky="w", pady=4)
+tahun_field.grid(row=2, column=7, columnspan=2,sticky="w", pady=4)
+stok_field.grid(row=3, column=7, columnspan=2,sticky="w", pady=4)
 
 
 frame_btn = Frame(wrapper3)
@@ -308,8 +287,6 @@ if __name__ == '__main__':
     root.title("Aplikasi Data Perpustakaan Sederhana")
     root.geometry("700x500")
     root.resizable(FALSE, FALSE)
-    root.columnconfigure(0, weight=1)
-    root.rowconfigure(0, weight=1)
     first = isFirst("LIBRARY")
     if(first):
         create_table()

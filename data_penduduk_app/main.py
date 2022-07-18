@@ -1,5 +1,5 @@
 from tkinter import *
-import tkinter as tk
+# import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 import sqlite3
@@ -15,13 +15,14 @@ def update_trv(rows):
     trv.delete(*trv.get_children())
     for i in rows: 
         trv.insert('','end',values=i)
+        
 
-# Search Data
+# Search Data   
 def search():
     q2 = q.get()
     query = """
-    SELECT * FROM FAMILY WHERE NIK LIKE {} OR NAMA LIKE {}
-    """.format("'%"+q2+"%'", "'%"+q2+"%'")
+    SELECT * FROM FAMILY WHERE NIK LIKE {} OR NAMA LIKE {} OR NO_KK LIKE {}
+    """.format("'%"+q2+"%'", "'%"+q2+"%'", "'%"+q2+"%'")
     print(query)
     cursor.execute(query)
     conn.commit()
@@ -36,6 +37,17 @@ def clear():
     conn.commit()
     update_trv(rows)
     clear_field()
+
+#   Count Family Check
+def checkCount(nik):
+    query =  """
+    SELECT COUNT(*) FROM FAMILY WHERE NO_KK = {}
+    """.format(nik)
+    cursor.execute(query)
+    cur_result = cursor.fetchone()
+    rows = cur_result[0]
+    return rows
+
 
 # Get Row Select from Treeview
 def getrow(event):
@@ -59,8 +71,10 @@ def getrow(event):
     v_s_dlm_keluarga.set(item['values'][7])
     v_nama_ayah.set(item['values'][8])
     v_nama_ibu.set(item['values'][9])
+    v_no_kk.set(item["values"][10])
 
-
+    count = checkCount(item['values'][10])
+    v_jumlah_keluarga.set(count)
 # Create Family Table
 def create_table():
     cursor.execute("DROP TABLE IF EXISTS FAMILY")
@@ -75,7 +89,8 @@ def create_table():
         STATUS_PERNIKAHAN TEXT, 
         STATUS_DALAM_KELUARGA TEXT,
         NAMA_AYAH TEXT,
-        NAMA_IBU TEXT
+        NAMA_IBU TEXT,
+        NO_KK
     )
     """
     cursor.execute(query)
@@ -98,13 +113,15 @@ def clear_field():
     pendidikan_field.set('')
     s_pernikahan_field.set('')
     s_dlm_keluarga_field.set('')
+    no_kk_field.delete(0, 'end')
+    jumlah_keluarga_field.delete(0, 'end')
 
 # Update People Data
 def update_people():
     if messagebox.askyesno("Harap Konfirmasi", "Apakah Anda Serius ingin memperbaharui data ini?"):
         query = """
             UPDATE FAMILY
-            SET NAMA = :NAMA, JK = :JK, PENDIDIKAN = :PENDIDIKAN, TTL = :TTL, STATUS_PERNIKAHAN = :STATUS_PERNIKAHAN, STATUS_DALAM_KELUARGA = :STATUS_DALAM_KELUARGA, NAMA_AYAH = :NAMA_AYAH, NAMA_IBU = :NAMA_IBU
+            SET NAMA = :NAMA, JK = :JK, PENDIDIKAN = :PENDIDIKAN, TTL = :TTL, STATUS_PERNIKAHAN = :STATUS_PERNIKAHAN, STATUS_DALAM_KELUARGA = :STATUS_DALAM_KELUARGA, NAMA_AYAH = :NAMA_AYAH, NAMA_IBU = :NAMA_IBU, NO_KK = :NO_KK
             WHERE NIK = :NIK
         """
         params = {
@@ -118,6 +135,7 @@ def update_people():
             'STATUS_DALAM_KELUARGA': v_s_dlm_keluarga.get(),
             'NAMA_AYAH': v_nama_ayah.get(),
             'NAMA_IBU': v_nama_ibu.get(),
+            'NO_KK': v_no_kk.get()
         }
         cursor.execute(query, params)
         conn.commit()
@@ -130,8 +148,8 @@ def update_people():
 def add_new():
     query = """
         INSERT INTO FAMILY
-        (NIK, NAMA, JK, PENDIDIKAN, PEKERJAAN, TTL, STATUS_PERNIKAHAN, STATUS_DALAM_KELUARGA, NAMA_AYAH, NAMA_IBU)
-        VALUES (:NIK, :NAMA, :JK, :PENDIDIKAN, :PEKERJAAN, :TTL, :STATUS_PERNIKAHAN, :STATUS_DALAM_KELUARGA, :NAMA_AYAH, :NAMA_IBU)
+        (NIK, NAMA, JK, PENDIDIKAN, PEKERJAAN, TTL, STATUS_PERNIKAHAN, STATUS_DALAM_KELUARGA, NAMA_AYAH, NAMA_IBU, NO_KK)
+        VALUES (:NIK, :NAMA, :JK, :PENDIDIKAN, :PEKERJAAN, :TTL, :STATUS_PERNIKAHAN, :STATUS_DALAM_KELUARGA, :NAMA_AYAH, :NAMA_IBU, :NO_KK)
         """
     params = {
         'NIK': v_nik.get(),
@@ -144,6 +162,7 @@ def add_new():
         'STATUS_DALAM_KELUARGA': v_s_dlm_keluarga.get(),
         'NAMA_AYAH': v_nama_ayah.get(),
         'NAMA_IBU': v_nama_ibu.get(),
+        'NO_KK': v_no_kk.get()
     }
     cursor.execute(query, params)
     conn.commit()
@@ -188,7 +207,7 @@ wrapper3.pack(fill="both", padx=20, pady=10)
 
 # SECTION : TREE VIEW
 # Treeview Configure
-trv = ttk.Treeview(wrapper1, column=(0,1,2,3,4,5,6,7,8,9), height=8)
+trv = ttk.Treeview(wrapper1, column=(0,1,2,3,4,5,6,7,8,9,10), height=8)
 trv["show"] = "headings"
 style = ttk.Style(root)
 style.theme_use("clam")
@@ -205,17 +224,20 @@ trv.heading(6, text="Status Pernikahan")
 trv.heading(7, text="Status dalam Keluarga")
 trv.heading(8, text="Nama Ayah")
 trv.heading(9, text="Nama Ibu")
+trv.heading(10, text="No KK")
+
 # Treeview Column
-trv.column(0, width=70, minwidth=150, anchor=CENTER)
-trv.column(1, width=70, minwidth=150, anchor=CENTER)
-trv.column(2, width=0, minwidth=70, anchor=CENTER)
-trv.column(3, width=70, minwidth=150,anchor=CENTER)
-trv.column(4, width=70, minwidth=150,anchor=CENTER)
-trv.column(5, width=70, minwidth=150,anchor=CENTER)
-trv.column(6, width=70, minwidth=150, anchor=CENTER)
-trv.column(7, width=70, minwidth=150,anchor=CENTER)
-trv.column(8, width=70, minwidth=150,anchor=CENTER)
-trv.column(9, width=70, minwidth=150,anchor=CENTER)
+trv.column(0, width=65, minwidth=150, anchor=CENTER)
+trv.column(1, width=65, minwidth=150, anchor=CENTER)
+trv.column(2, width=0, minwidth=65, anchor=CENTER)
+trv.column(3, width=65, minwidth=150,anchor=CENTER)
+trv.column(4, width=65, minwidth=150,anchor=CENTER)
+trv.column(5, width=65, minwidth=150,anchor=CENTER)
+trv.column(6, width=65, minwidth=150, anchor=CENTER)
+trv.column(7, width=65, minwidth=150,anchor=CENTER)
+trv.column(8, width=65, minwidth=150,anchor=CENTER)
+trv.column(9, width=65, minwidth=150,anchor=CENTER)
+trv.column(10, width=65, minwidth=150,anchor=CENTER)
 
 trv.bind('<Double 1>', getrow)
 
@@ -225,7 +247,6 @@ yscrollbar.pack(side=RIGHT, fill="y")
 xscrollbar = ttk.Scrollbar(wrapper1, orient="horizontal", command=trv.xview)
 xscrollbar.pack(side=BOTTOM,fill=X)
 trv.configure(yscrollcommand=yscrollbar.set, xscrollcommand=xscrollbar.set)
-
 
 
 # SECTION : SEARCH
@@ -242,17 +263,19 @@ cbtn.pack(side=LEFT, padx=6, pady=15)
 # SECTION = FAMILY DATA FORM
 p_style = ('Calibri 10')
 # Select Label of From
-nik = tk.Label(wrapper3, text="NIK",  font= p_style)
-nama = tk.Label(wrapper3, text="Nama", font= p_style)
-jk = tk.Label(wrapper3, text="Jenis Kelamin", font= p_style)
-pendidikan = tk.Label(wrapper3, text="Pendidikan", font= p_style)
-pekerjaan = tk.Label(wrapper3, text="Pekerjaan", font= p_style)
-tempat_lahir = tk.Label(wrapper3, text="Tempat Lahir", font= p_style)
-tgl_lahir = tk.Label(wrapper3, text="Tanggal Lahir", font= p_style)
-status_pernikahan = tk.Label(wrapper3, text="Status Pernikahan", font= p_style)
-status_keluarga = tk.Label(wrapper3, text="Status dalam Keluarga", font= p_style)
-nama_ayah = tk.Label(wrapper3, text="Nama Ayah", font= p_style)
-nama_ibu = tk.Label(wrapper3, text="Nama Ibu", font= p_style)
+nik = Label(wrapper3, text="NIK",  font= p_style)
+nama = Label(wrapper3, text="Nama", font= p_style)
+jk = Label(wrapper3, text="Jenis Kelamin", font= p_style)
+pendidikan = Label(wrapper3, text="Pendidikan", font= p_style)
+pekerjaan = Label(wrapper3, text="Pekerjaan", font= p_style)
+tempat_lahir = Label(wrapper3, text="Tempat Lahir", font= p_style)
+tgl_lahir = Label(wrapper3, text="Tanggal Lahir", font= p_style)
+status_pernikahan = Label(wrapper3, text="Status Pernikahan", font= p_style)
+status_keluarga = Label(wrapper3, text="Status dalam Keluarga", font= p_style)
+nama_ayah = Label(wrapper3, text="Nama Ayah", font= p_style)
+nama_ibu = Label(wrapper3, text="Nama Ibu", font= p_style)
+no_kk = Label(wrapper3, text="No KK", font= p_style)
+jumlah_keluarga = Label(wrapper3, text="Jumlah Keluarga", font= p_style)
 # Place Label of Form
 nik.grid(row=1, column=0, sticky="w", pady=4, padx=(0,30))
 nama.grid(row=2, column=0, sticky="w", pady=4)
@@ -265,21 +288,25 @@ status_pernikahan.grid(row=2, column=6, sticky="w", pady=4,  padx=10)
 status_keluarga.grid(row=3, column=6, sticky="w", pady=4,  padx=10)
 nama_ayah.grid(row=4, column=6, sticky="w", pady=4,  padx=10)
 nama_ibu.grid(row=5, column=6, sticky="w", pady=4,  padx=10)
+no_kk.grid(row=6, column=6, sticky="w", pady=4,  padx=10)
+jumlah_keluarga.grid(row=7, column=6, sticky="w", pady=4,  padx=10)
 # Variabel to Save value of Field
-v_nik = tk.IntVar()
-v_nama = tk.StringVar()
-v_jk = tk.StringVar()
+v_nik = IntVar()
+v_nama = StringVar()
+v_jk = StringVar()
 v_jk.set(None)
-v_pendidikan = tk.StringVar()
-v_pekerjaaan = tk.StringVar()
-v_tempat_lahir = tk.StringVar()
-v_tgl_lahir = tk.StringVar()
-v_bln_lahir = tk.StringVar()
-v_thn_lahir = tk.StringVar()
-v_s_pernikahan = tk.StringVar()
-v_s_dlm_keluarga = tk.StringVar()
-v_nama_ayah = tk.StringVar()
-v_nama_ibu = tk.StringVar()
+v_pendidikan = StringVar()
+v_pekerjaaan = StringVar()
+v_tempat_lahir = StringVar()
+v_tgl_lahir = StringVar()
+v_bln_lahir = StringVar()
+v_thn_lahir = StringVar()
+v_s_pernikahan = StringVar()
+v_s_dlm_keluarga = StringVar()
+v_nama_ayah = StringVar()
+v_nama_ibu = StringVar()
+v_no_kk = IntVar()
+v_jumlah_keluarga = IntVar()
 # Field to Input data
 nik_field = Entry(wrapper3, font=p_style, textvariable=v_nik)
 nama_field = Entry(wrapper3, font=p_style, textvariable=v_nama)
@@ -300,12 +327,12 @@ pendidikan_field['values'] = ('Tidak/Belum Sekolah',
 pekerjaan_field = Entry(wrapper3, font=p_style, textvariable=v_pekerjaaan)
 tempat_lahir_field = Entry(wrapper3, font=p_style, textvariable=v_tempat_lahir)
 
-frame_tgl = tk.Frame(wrapper3)
+frame_tgl = Frame(wrapper3)
 tgl_field = Entry(frame_tgl, font=p_style, width=4, textvariable=v_tgl_lahir)
 bln_field = Entry(frame_tgl, font=p_style, width=4, textvariable=v_bln_lahir)
 thn_field = Entry(frame_tgl, font=p_style, width=8, textvariable=v_thn_lahir)
-label_1 = tk.Label(frame_tgl, text='/', font=p_style)
-label_2 = tk.Label(frame_tgl, text='/', font=p_style)
+label_1 = Label(frame_tgl, text='/', font=p_style)
+label_2 = Label(frame_tgl, text='/', font=p_style)
 
 s_pernikahan_field = ttk.Combobox(wrapper3, width = 17, textvariable = v_s_pernikahan, font=p_style)
 s_pernikahan_field['values']=('Belum Kawin','Kawin','Cerai Hidup', 'Cerai Mati')
@@ -313,6 +340,10 @@ s_dlm_keluarga_field = ttk.Combobox(wrapper3, width = 17, textvariable = v_s_dlm
 s_dlm_keluarga_field['values'] = ('Kepala Keluaga', 'Suami', 'Istri', 'Anak', "Menantu",'Cucu','Orang Tua','Mertua') 
 nama_ayah_field = Entry(wrapper3, font=p_style, textvariable=v_nama_ayah)
 nama_ibu_field = Entry(wrapper3, font=p_style, textvariable=v_nama_ibu)
+no_kk_field = Entry(wrapper3, font=p_style, textvariable=v_no_kk)
+jumlah_keluarga_field = Entry(wrapper3, font=p_style, textvariable=v_jumlah_keluarga)
+jumlah_keluarga_field.config(state="disabled")
+
 
 # Place Field
 nik_field.grid(row=1, column=2, columnspan=2,  sticky="w", pady=4, padx=10)
@@ -334,6 +365,9 @@ s_pernikahan_field.grid(row=2, column=7, columnspan=2,sticky="w", pady=4)
 s_dlm_keluarga_field.grid(row=3, column=7, columnspan=2,sticky="w", pady=4)
 nama_ayah_field.grid(row=4, column=7, columnspan=2,sticky="w", pady=4)
 nama_ibu_field.grid(row=5, column=7, columnspan=2,sticky="w", pady=4)
+no_kk_field.grid(row=6, column=7, columnspan=2,sticky="w", pady=4)
+jumlah_keluarga_field.grid(row=7, column=7, columnspan=2,sticky="w", pady=4)
+
 
 frame_btn = Frame(wrapper3)
 up_btn = Button(frame_btn, text="Update", command=update_people)
@@ -342,19 +376,19 @@ delete_btn = Button(frame_btn, text="Hapus", command=delete_people)
 add_btn.pack(side=LEFT, padx=5)
 up_btn.pack(side=LEFT, padx=5)
 delete_btn.pack(side=LEFT, padx=5)
-frame_btn.grid(row=7, column=0, columnspan=8, sticky=W, pady=10)
+frame_btn.grid(row=8, column=0, columnspan=8, sticky=W, pady=10)
 
-if __name__ == '__main__':
-    root.title("Aplikasi Data Penduduk Sederhana")
-    root.geometry("700x600")
-    root.resizable(FALSE, FALSE)
-    root.columnconfigure(0, weight=1)
-    root.rowconfigure(0, weight=1)
-    first = isFirst("FAMILY")
-    if(first):
-        create_table()
-    else:
-        select_all()
-    root.mainloop()
+# if __name__ == '__main__':
+root.title("Aplikasi Data Penduduk Sederhana")
+root.geometry("700x600")
+root.resizable(FALSE, FALSE)
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
+first = isFirst("FAMILY")
+if(first):
+    create_table()
+else:
+    select_all()
+root.mainloop()
 
 
